@@ -1,4 +1,6 @@
-name: Archive British Pathe
+name: Update README
+
+# code copied from example on Wiki
 
 on:
   schedule:
