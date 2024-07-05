@@ -17,4 +17,23 @@ jobs:
         RUN_NUMBER: ${{ github.run_number }}
       run: |
         curl -sS "https://web.archive.org/save/https://www.britishpathe.com/asset/$(($RUN_NUMBER + 36000))"
+        echo "LINK:"
         echo "https://web.archive.org/save/https://www.britishpathe.com/asset/$(($RUN_NUMBER + 36000))"
+
+    - name: install
+      run: |
+        sudo apt-get install -y lynx
+        
+    - name: outlinks
+      env:
+        RUN_NUMBER: ${{ github.run_number }}
+      run: |
+        # Extract outlinks from the webpage
+        outlinks=$(lynx -dump -listonly "https://www.britishpathe.com/asset/$(($RUN_NUMBER + 36000))" | grep -o 'https\?://[^[:space:]]*')
+        
+        # Archive each outlink using the Wayback Machine API
+        for link in $outlinks; do
+          curl -sS "https://web.archive.org/save/$link"
+          echo "LINK:"
+          echo "https://web.archive.org/save/$link"
+        done
