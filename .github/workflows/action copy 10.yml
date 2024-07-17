@@ -43,8 +43,8 @@ jobs:
             print(f"Archive URL: {archive_url}")
 
         def find_video_source(html):
-            video_start = html.find("<video")
-            video_end = html.find("</video>", video_start)
+            video_start = html.index("<video")
+            video_end = html.index("</video>")
             if video_start == -1 or video_end == -1:
                 return None
 
