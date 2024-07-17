@@ -47,7 +47,7 @@ jobs:
             try:
               video_start = html.index("<video")
               video_end = html.index("</video>")
-            catch Exception as e:
+            except Exception as e:
               print(e)
             if video_start == -1 or video_end == -1:
                 return None
