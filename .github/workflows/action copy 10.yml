@@ -1,7 +1,5 @@
 name: Update README
 
-# code copied from example on Wiki
-
 on:
   schedule:
     - cron: '*/5 * * * *'  # Runs every 5 minutes
@@ -10,11 +8,58 @@ on:
 jobs:
   archive:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Archive URL
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4
+
+    - name: Extract and archive video URLs
       env:
         RUN_NUMBER: ${{ github.run_number }}
       run: |
-        curl -sS "https://web.archive.org/save/https://www.britishpathe.com/asset/$(($RUN_NUMBER + 36000))"
-        echo "https://web.archive.org/save/https://www.britishpathe.com/asset/$(($RUN_NUMBER + 52000))"
+        python <<EOF
+        import requests
+        from bs4 import BeautifulSoup
+        import re
+
+        def check_archive_status(url):
+            api_url = f"http://archive.org/wayback/available?url={url}"
+            response = requests.get(api_url)
+            data = response.json()
+            return data['archived_snapshots'] != {}
+
+        def archive_url(url):
+            if check_archive_status(url):
+                print(f"Already archived: {url}")
+                return
+
+            archive_url = f"https://web.archive.org/save/{url}"
+            response = requests.get(archive_url)
+            print(f"Newly archived: {url}")
+            print(f"Archive URL: {archive_url}")
+
+        run_number = int("$RUN_NUMBER")
+        url = f"https://www.britishpathe.com/asset/{run_number + 52000}"
+        
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        video_tags = soup.find_all('video')
+        
+        for video in video_tags:
+            source_tags = video.find_all('source')
+            for source in source_tags:
+                src = source.get('src')
+                if src:
+                    print(f"Found video source: {src}")
+                    archive_url(src)
+        
+        # Archive the main page as well
+        archive_url(url)
+        EOF
