@@ -19,7 +19,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Extract and archive video URLs
+    - name: Extract and archive video URL
       env:
         RUN_NUMBER: ${{ github.run_number }}
       run: |
@@ -42,37 +42,17 @@ jobs:
             print(f"Newly archived: {url}")
             print(f"Archive URL: {archive_url}")
 
-        def find_video_sources(html):
-            sources = []
-            start = 0
-            while True:
-                video_start = html.find('<video', start)
-                if video_start == -1:
-                    break
-                video_end = html.find('</video>', video_start)
-                if video_end == -1:
-                    break
-                video_tag = html[video_start:video_end]
-                
-                source_start = 0
-                while True:
-                    source_start = video_tag.find('<source', source_start)
-                    if source_start == -1:
-                        break
-                    src_start = video_tag.find('src="', source_start)
-                    if src_start == -1:
-                        break
-                    src_start += 5  # Length of 'src="'
-                    src_end = video_tag.find('"', src_start)
-                    if src_end == -1:
-                        break
-                    src = video_tag[src_start:src_end]
-                    sources.append(src)
-                    source_start = src_end
-                
-                start = video_end
+        def find_video_source(html):
+            video_start = html.find("<video")
+            video_end = html.find("</video>", video_start)
+            if video_start == -1 or video_end == -1:
+                return None
 
-            return sources
+            video_tag = html[video_start:video_end]
+            src_start = video_tag.find('src="') + 5
+            src_end = video_tag.find('"', src_start)
+            
+            return video_tag[src_start:src_end]
 
         run_number = int("$RUN_NUMBER")
         url = f"https://www.britishpathe.com/asset/{run_number + 52000}"
@@ -80,11 +60,13 @@ jobs:
         response = requests.get(url)
         html_content = response.text
         
-        video_sources = find_video_sources(html_content)
+        video_source = find_video_source(html_content)
         
-        for src in video_sources:
-            print(f"Found video source: {src}")
-            archive_url(src)
+        if video_source:
+            print(f"Found video source: {video_source}")
+            archive_url(video_source)
+        else:
+            print("No video source found")
         
         # Archive the main page as well
         archive_url(url)
