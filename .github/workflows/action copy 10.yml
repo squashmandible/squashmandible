@@ -17,7 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests beautifulsoup4
+        pip install requests
 
     - name: Extract and archive video URLs
       env:
@@ -25,8 +25,6 @@ jobs:
       run: |
         python <<EOF
         import requests
-        from bs4 import BeautifulSoup
-        import re
 
         def check_archive_status(url):
             api_url = f"http://archive.org/wayback/available?url={url}"
@@ -44,21 +42,49 @@ jobs:
             print(f"Newly archived: {url}")
             print(f"Archive URL: {archive_url}")
 
+        def find_video_sources(html):
+            sources = []
+            start = 0
+            while True:
+                video_start = html.find('<video', start)
+                if video_start == -1:
+                    break
+                video_end = html.find('</video>', video_start)
+                if video_end == -1:
+                    break
+                video_tag = html[video_start:video_end]
+                
+                source_start = 0
+                while True:
+                    source_start = video_tag.find('<source', source_start)
+                    if source_start == -1:
+                        break
+                    src_start = video_tag.find('src="', source_start)
+                    if src_start == -1:
+                        break
+                    src_start += 5  # Length of 'src="'
+                    src_end = video_tag.find('"', src_start)
+                    if src_end == -1:
+                        break
+                    src = video_tag[src_start:src_end]
+                    sources.append(src)
+                    source_start = src_end
+                
+                start = video_end
+
+            return sources
+
         run_number = int("$RUN_NUMBER")
         url = f"https://www.britishpathe.com/asset/{run_number + 52000}"
         
         response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        html_content = response.text
         
-        video_tags = soup.find_all('video')
+        video_sources = find_video_sources(html_content)
         
-        for video in video_tags:
-            source_tags = video.find_all('source')
-            for source in source_tags:
-                src = source.get('src')
-                if src:
-                    print(f"Found video source: {src}")
-                    archive_url(src)
+        for src in video_sources:
+            print(f"Found video source: {src}")
+            archive_url(src)
         
         # Archive the main page as well
         archive_url(url)
